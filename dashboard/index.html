@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitor da Sala</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root { --fundo:#f4f5f7; --card:#fff; --texto:#1d2330; --suave:#6b7280; --borda:#e3e6eb;
+          --ok:#1a7f4b; --alerta:#c62828; --azul:#2563eb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--fundo); color:var(--texto); }
+  header { padding:16px 24px; background:var(--card); border-bottom:1px solid var(--borda);
+           display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+  h1 { font-size:20px; margin:0; }
+  main { padding:20px 24px; max-width:1200px; margin:auto; display:grid; gap:16px; }
+  .linha { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; }
+  .card { background:var(--card); border:1px solid var(--borda); border-radius:10px; padding:16px; }
+  .rotulo { font-size:13px; color:var(--suave); margin-bottom:6px; }
+  .valor { font-size:34px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .valor small { font-size:16px; color:var(--suave); font-weight:400; }
+  .selo { display:inline-block; padding:3px 10px; border-radius:99px; font-size:13px; font-weight:600; }
+  .selo.ok { background:#e3f4ea; color:var(--ok); }
+  .selo.ruim { background:#fde8e8; color:var(--alerta); }
+  .selo.neutro { background:#eceef2; color:var(--suave); }
+  .card.em-alerta { border-color:var(--alerta); box-shadow:0 0 0 2px #fde8e8; }
+  .em-alerta .valor { color:var(--alerta); }
+  button { font:inherit; padding:8px 14px; border-radius:8px; border:1px solid var(--borda);
+           background:var(--card); cursor:pointer; }
+  button:hover { border-color:var(--azul); }
+  button.primario { background:var(--azul); color:#fff; border-color:var(--azul); }
+  .controles { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  input { font:inherit; width:80px; padding:7px; border:1px solid var(--borda); border-radius:8px; }
+  .grafico { position:relative; height:320px; }
+  .duas { display:grid; grid-template-columns:2fr 1fr; gap:16px; }
+  @media (max-width:800px) { .duas { grid-template-columns:1fr; } }
+  ul { list-style:none; padding:0; margin:0; font-size:14px; }
+  li { padding:8px 0; border-bottom:1px solid var(--borda); }
+  li time { color:var(--suave); font-size:12px; display:block; }
+  table { width:100%; font-size:14px; border-collapse:collapse; }
+  td { padding:5px 0; } td:last-child { text-align:right; font-variant-numeric:tabular-nums; }
+  #msg { font-size:13px; color:var(--suave); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🌡️ Monitor da Sala de Servidores</h1>
+  <div class="controles">
+    <span class="rotulo" style="margin:0">Broker</span><span id="selo-broker" class="selo neutro">—</span>
+    <span class="rotulo" style="margin:0">Gateway</span><span id="selo-gateway" class="selo neutro">—</span>
+  </div>
+</header>
+<main>
+  <div class="linha">
+    <div class="card" id="card-temp">
+      <div class="rotulo">Temperatura (média móvel)</div>
+      <div class="valor"><span id="temp">—</span> <small>°C</small></div>
+      <div class="rotulo" id="limite-txt" style="margin-top:6px">limite —</div>
+    </div>
+    <div class="card">
+      <div class="rotulo">Umidade</div>
+      <div class="valor"><span id="umid">—</span> <small>%</small></div>
+    </div>
+    <div class="card">
+      <div class="rotulo">Ventilador</div>
+      <div class="valor" id="vent">—</div>
+      <div class="rotulo" id="modo" style="margin-top:6px">—</div>
+    </div>
+    <div class="card">
+      <div class="rotulo">Última leitura</div>
+      <div class="valor" style="font-size:22px" id="ultima">—</div>
+      <div class="rotulo" id="descartadas" style="margin-top:6px">—</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="rotulo">Comandos (Cloud → Arduino)</div>
+    <div class="controles">
+      <button class="primario" onclick="comando('VENT:1')">Ligar ventilador</button>
+      <button onclick="comando('VENT:0')">Desligar ventilador</button>
+      <button onclick="comando('AUTO')">Modo automático</button>
+      <span style="width:12px"></span>
+      <label for="novo-limite" class="rotulo" style="margin:0">Limite °C</label>
+      <input id="novo-limite" type="number" min="10" max="50" step="0.5" value="30">
+      <button onclick="comando('LIMITE:' + document.getElementById('novo-limite').value)">Definir</button>
+      <span id="msg"></span>
+    </div>
+  </div>
+
+  <div class="duas">
+    <div class="card">
+      <div class="controles" style="justify-content:space-between">
+        <div class="rotulo">Histórico</div>
+        <div class="controles">
+          <button onclick="periodo(15)">15 min</button>
+          <button onclick="periodo(60)">1 h</button>
+          <button onclick="periodo(1440)">24 h</button>
+        </div>
+      </div>
+      <div class="grafico"><canvas id="grafico"></canvas></div>
+    </div>
+    <div style="display:grid; gap:16px; align-content:start">
+      <div class="card">
+        <div class="rotulo">Últimas 24 h (métricas de SLA)</div>
+        <table>
+          <tr><td>Temp. mín / média / máx</td><td id="s-temp">—</td></tr>
+          <tr><td>Leituras recebidas</td><td id="s-leituras">—</td></tr>
+          <tr><td>Alertas disparados</td><td id="s-alertas">—</td></tr>
+          <tr><td>Latência média / máx</td><td id="s-lat">—</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <div class="rotulo">Eventos</div>
+        <ul id="eventos"></ul>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+let minutos = 15;
+const hora = ts => new Date(ts * 1000).toLocaleTimeString('pt-BR');
+const fmt = (v, d = 1) => v == null ? '—' : Number(v).toFixed(d);
+
+const grafico = new Chart(document.getElementById('grafico'), {
+  type: 'line',
+  data: { labels: [], datasets: [
+    { label: 'Temperatura (°C)', data: [], borderColor: '#c62828', backgroundColor: '#c62828',
+      yAxisID: 'y', tension: .3, pointRadius: 0, borderWidth: 2 },
+    { label: 'Limite (°C)', data: [], borderColor: '#c62828', borderDash: [6, 4],
+      yAxisID: 'y', pointRadius: 0, borderWidth: 1 },
+    { label: 'Umidade (%)', data: [], borderColor: '#2563eb', backgroundColor: '#2563eb',
+      yAxisID: 'y1', tension: .3, pointRadius: 0, borderWidth: 2 },
+  ]},
+  options: {
+    animation: false, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+    scales: {
+      x: { ticks: { maxTicksLimit: 8 } },
+      y: { position: 'left', title: { display: true, text: '°C' } },
+      y1: { position: 'right', title: { display: true, text: '%' }, grid: { drawOnChartArea: false } },
+    },
+  },
+});
+
+function selo(id, ok, txtOk, txtRuim) {
+  const el = document.getElementById(id);
+  el.className = 'selo ' + (ok == null ? 'neutro' : ok ? 'ok' : 'ruim');
+  el.textContent = ok == null ? '—' : ok ? txtOk : txtRuim;
+}
+
+async function atualizar() {
+  try {
+    const [estado, leituras, eventos] = await Promise.all([
+      fetch('/api/estado').then(r => r.json()),
+      fetch('/api/leituras?minutos=' + minutos).then(r => r.json()),
+      fetch('/api/eventos').then(r => r.json()),
+    ]);
+
+    selo('selo-broker', estado.broker_conectado, 'conectado', 'desconectado');
+    selo('selo-gateway', estado.gateway === 'desconhecido' ? null : estado.gateway === 'online' && !estado.sem_dados,
+         'online', estado.sem_dados ? 'sem dados' : 'offline');
+
+    const u = estado.ultima;
+    if (u) {
+      document.getElementById('temp').textContent = fmt(u.t);
+      document.getElementById('umid').textContent = fmt(u.u, 0);
+      document.getElementById('limite-txt').textContent = `limite ${fmt(u.limite)} °C` + (u.alerta ? ' — ALERTA' : '');
+      document.getElementById('card-temp').classList.toggle('em-alerta', !!u.alerta);
+      document.getElementById('vent').textContent = u.vent ? 'LIGADO' : 'desligado';
+      document.getElementById('modo').textContent = u.auto ? 'modo automático' : 'modo manual';
+      document.getElementById('ultima').textContent = hora(estado.ultima_ts);
+      document.getElementById('descartadas').textContent = `${u.descartadas} leituras filtradas na borda`;
+    }
+
+    const s = estado.stats_24h;
+    document.getElementById('s-temp').textContent = `${fmt(s.tmin)} / ${fmt(s.tmed)} / ${fmt(s.tmax)} °C`;
+    document.getElementById('s-leituras').textContent = s.leituras;
+    document.getElementById('s-alertas').textContent = s.alertas;
+    document.getElementById('s-lat').textContent = `${fmt(s.lat_media, 0)} / ${fmt(s.lat_max, 0)} ms`;
+
+    grafico.data.labels = leituras.map(l => hora(l.ts));
+    grafico.data.datasets[0].data = leituras.map(l => l.temperatura);
+    grafico.data.datasets[1].data = leituras.map(l => l.limite);
+    grafico.data.datasets[2].data = leituras.map(l => l.umidade);
+    grafico.update();
+
+    document.getElementById('eventos').innerHTML = eventos.map(e =>
+      `<li><time>${new Date(e.ts * 1000).toLocaleString('pt-BR')}</time>${e.mensagem.replace(/</g, '&lt;')}</li>`
+    ).join('') || '<li>Nenhum evento ainda</li>';
+  } catch (e) {
+    selo('selo-broker', null);
+  }
+}
+
+async function comando(cmd) {
+  const msg = document.getElementById('msg');
+  msg.textContent = 'enviando...';
+  const r = await fetch('/api/comando', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ comando: cmd }) });
+  const j = await r.json();
+  msg.textContent = j.ok ? `✓ ${cmd} enviado` : `✗ ${j.erro}`;
+  setTimeout(atualizar, 800);
+}
+
+function periodo(m) { minutos = m; atualizar(); }
+
+atualizar();
+setInterval(atualizar, 3000);
+</script>
+</body>
+</html>

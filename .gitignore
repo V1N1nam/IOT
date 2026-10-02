@@ -1,0 +1,10 @@
+# Credenciais (MQTT, Telegram) - nunca versionar
+.env
+
+# Banco gerado em tempo de execução
+*.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
