@@ -106,3 +106,31 @@ py gateway.py --simular     # sem Arduino (testes ou plano B na apresentação)
 
 - `leituras`: ts, temperatura, umidade, ventilador, modo_auto, alerta, limite, descartadas, latencia_ms
 - `eventos`: ts, tipo (alerta, normalizado, comando, offline, online, sem_dados, dados), mensagem
+
+## Modelos de nuvem (IaaS / PaaS / SaaS)
+
+| Componente | Hoje | Em produção | Plano gratuito / limites |
+|---|---|---|---|
+| Broker MQTT (EMQX Cloud Serverless) | PaaS | PaaS | 1 mi minutos de sessão, 1 GB de tráfego e 1 mi ações de regra por mês; até 1.000 conexões. Com *spend limit* 0 nunca cobra |
+| Notificações (Telegram Bot API) | SaaS | SaaS | Grátis; ~1 msg/s por conversa e ~30 msg/s no total |
+| Back-end Flask + dashboard | Local | PaaS (Render, Railway, App Service) ou IaaS (VM) | Open source |
+| Banco (SQLite) | Local | Banco gerenciado (PaaS) com backup | Open source, sem replicação |
+| Gateway Python | Local (borda) | Substituído por ESP32 com Wi-Fi | Open source |
+
+Gateway + back-end = 2 clientes ligados o mês todo ≈ 86.400 minutos de sessão (8,6 % da cota gratuita).
+Fontes: [EMQX pricing](https://docs.emqx.com/en/cloud/latest/price/pricing.html), [Telegram Bots FAQ](https://core.telegram.org/bots/faq).
+
+## SLA proposto (cenário hipotético)
+
+| Métrica | Meta | Como medir | Medido no protótipo (12/10/2026) |
+|---|---|---|---|
+| Disponibilidade (telemetria chegando, sem buraco > 60 s) | ≥ 99,5 %/mês (≈ 3 h 39 min fora) | `leituras` + eventos `sem_dados` | sem quedas no teste |
+| Latência gateway → back-end | p95 ≤ 1 s | coluna `latencia_ms` | mediana 153 ms, p95 223 ms |
+| Temperatura passou do limite → mensagem no Telegram | ≤ 60 s em 99 % | evento `alerta` + hora no Telegram | 1–2 s após baixar o limite |
+| Queda do gateway/sensor → aviso | ≤ 90 s | eventos `offline` / `sem_dados` | não medido (Last Will ≈ 45 s, sem dados 60 s) |
+| Comando do dashboard → `ack` | ≤ 5 s em 99 % | evento `comando` + `ack` | < 2 s, sem medição formal |
+| Recuperação (RTO) | automática ≤ 1 min; manual ≤ 4 h | `offline` → `online` | MQTT reconecta em 1–30 s, serial a cada 3 s |
+| Perda de dados (RPO) | ≤ 24 h (backup diário) | data do último backup | sem backup hoje |
+
+Disponibilidade composta = produto das partes: EMQX publica 99,9 %; com back-end em PaaS a 99,9 %, sobram ≈ 0,3 p.p. para a borda — o gateway no PC é o elo fraco.
+Relatório técnico completo (contextualização, arquitetura, nuvem, SLA, considerações finais) é entregue à parte.
