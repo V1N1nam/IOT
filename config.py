@@ -2,12 +2,16 @@
 import os
 import re
 import ssl
+import sys
 
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 
 PASTA = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(PASTA, ".env"))
+
+# Windows usa cp1252 quando a saída é redirecionada: um print com emoji lançava erro e o alerta não ia pro Telegram
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 MQTT_HOST = os.getenv("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
