@@ -17,11 +17,10 @@ mostra num dashboard web e avisa no Telegram. Do dashboard dá para ligar/deslig
 | Peça | Ligação no Uno |
 |---|---|
 | DHT11 (módulo de 3 pinos) + jumpers macho-fêmea | VCC (+) → 5V, GND (−) → GND, DATA (S) → pino 2 |
-| "Ventilador" | LED da própria placa (pino 13) — nada a comprar |
-| LED externo + resistor 220 Ω (opcional, mais visível na demo) | pino 13 → resistor → LED (perna longa) → GND |
+| "Ventilador" | LED externo + resistor 220 Ω: pino 12 → resistor → LED (perna longa) → GND |
+| Buzzer **ativo** (opcional) | + → pino 9, − → GND |
 
 > O LED que vem no módulo do DHT11 só indica que ele está ligado; não dá para controlar.
-| Buzzer **ativo** (opcional) | + → pino 9, − → GND |
 
 > Usou o DHT11 "puro" (4 pinos, sem placa)? Coloque um resistor de 10 kΩ entre DATA e 5V.
 

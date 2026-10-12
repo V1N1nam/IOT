@@ -7,7 +7,7 @@
  *
  * Ligações:
  *   DHT11 DATA -> pino 2   (VCC 5V, GND)
- *   LED "ventilador" -> pino 13 (já tem um LED na placa; opcional: LED externo + resistor de 220 ohm)
+ *   LED "ventilador" -> pino 12 (LED externo + resistor de 220 ohm)
  *   Buzzer ativo -> pino 9
  *
  * Comandos aceitos (uma linha terminada em \n):
@@ -22,7 +22,7 @@
 
 #define PINO_DHT    2
 #define TIPO_DHT    DHT11
-#define PINO_VENT   13
+#define PINO_VENT   12
 #define PINO_BUZZER 9
 
 const unsigned long INTERVALO_LEITURA   = 2000;   // DHT11 aceita no máximo 1 leitura/s
