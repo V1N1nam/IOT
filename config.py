@@ -1,8 +1,11 @@
 """Configuração compartilhada entre gateway e back-end (lida do arquivo .env)."""
 import os
 import re
+import socket
 import ssl
 import sys
+
+import urllib3.util.connection
 
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
@@ -12,6 +15,9 @@ load_dotenv(os.path.join(PASTA, ".env"))
 
 # Windows usa cp1252 quando a saída é redirecionada: um print com emoji lançava erro e o alerta não ia pro Telegram
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+# IPv6 sem rota nesta rede: cada chamada ao Telegram esperava ~20 s de timeout antes de cair no IPv4
+urllib3.util.connection.allowed_gai_family = lambda: socket.AF_INET
 
 MQTT_HOST = os.getenv("MQTT_HOST", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
@@ -27,6 +33,7 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 TIMEOUT_SEM_DADOS = int(os.getenv("TIMEOUT_SEM_DADOS", "60"))
+LEMBRETE_VENT_SEG = int(os.getenv("LEMBRETE_VENT_SEG", "10"))  # acima do limite com ventilador desligado
 
 TOPICO_TELEMETRIA = "sala/telemetria"   # Edge -> Cloud
 TOPICO_COMANDO = "sala/comando"         # Cloud -> Edge

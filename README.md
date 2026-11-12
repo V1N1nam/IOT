@@ -12,6 +12,39 @@ mostra num dashboard web e avisa no Telegram. Do dashboard dá para ligar/deslig
 
 **Nada aqui precisa de permissão de administrador.**
 
+## Rodar em outra máquina — checklist rápido
+
+O Arduino já gravado leva o programa junto; só a parte do PC precisa ser preparada.
+
+1. **Python 3.10+** (testado no 3.14) com o launcher `py` no Windows. Confira: `py --version`.
+2. **Copie a pasta do projeto** (ou `git clone`).
+3. **Copie o `.env` à mão** (pendrive, mensagem para você mesmo...). Ele **não vai pelo git** porque tem as senhas.
+   Sem ele, copie `.env.example` para `.env` e preencha MQTT e Telegram (seções 4 e 5).
+4. **Instale as dependências:** `py -m pip install --user -r requirements.txt`
+5. **Ligue o Arduino na USB** e descubra a porta: `py -m serial.tools.list_ports -v`.
+   Se não for `COM3`, ajuste `SERIAL_PORT` no `.env`. Feche o Monitor Serial da Arduino IDE.
+6. **Confira o broker:** no console do EMQX (<https://cloud-intl.emqx.com/console/>) o deployment tem que estar
+   **Running**. Se estiver *Stopped*, clique nele → **Start** (no assistente que aparecer, pode clicar em *Skip*).
+7. **Rode** em dois terminais, nesta ordem:
+   ```bash
+   py backend.py     # espere aparecer "[mqtt] conectado ao broker"
+   py gateway.py     # espere "[serial] conectado em COMx" e "[telemetria] {...}"
+   ```
+8. **Abra** <http://localhost:5000>. Broker e gateway devem aparecer em verde.
+9. *(Opcional)* Histórico de exemplo para a apresentação: `py gerar_dados_demo.py`
+   (some com `py gerar_dados_demo.py --apagar`). O banco `telemetria.db` é criado sozinho e não vai pelo git.
+
+**Se der errado:**
+
+| Sintoma | Causa provável | O que fazer |
+|---|---|---|
+| Broker "desconectado", gateway sem mensagem `[mqtt] conectado` | Deployment do EMQX parado ou rede bloqueando a 8883 | Passo 6; se continuar, `MQTT_PORT=8084` e `MQTT_WEBSOCKET=1` no `.env`; em último caso o broker local (seção 4) |
+| `could not open port 'COM3'` | Porta errada ou Monitor Serial aberto | Passo 5 |
+| Bot do Telegram não responde ou dá `409 Conflict` | Tem **outro** `backend.py` rodando com o mesmo token (outro terminal ou outro PC) | Deixe só um backend aberto |
+| Telegram demora ~20 s | IPv6 sem rota na rede | Já tratado em `config.py` (força IPv4); só reaparece se essa linha for removida |
+| `ModuleNotFoundError` | Dependências não instaladas | Passo 4 |
+| Temperatura salta / "leituras filtradas" sobe sem parar | Mau contato nos fios do DHT11 | Revise as ligações da seção 1 |
+
 ## 1. Hardware (~R$ 15–25)
 
 | Peça | Ligação no Uno |
@@ -72,6 +105,9 @@ py gateway.py               # com o Arduino na porta SERIAL_PORT do .env
 py gateway.py --simular     # sem Arduino (testes ou plano B na apresentação)
 ```
 
+O dashboard atualiza sozinho a cada 10 s, tem tema claro/escuro (🌙), mostra quanto tempo o ventilador
+ficou ligado nas últimas 24 h e exporta o período selecionado em **Excel (.xlsx)**.
+
 ## Tópicos MQTT
 
 | Tópico | Sentido | Conteúdo |
@@ -92,19 +128,34 @@ py gateway.py --simular     # sem Arduino (testes ou plano B na apresentação)
 - Temperatura passou do limite / voltou ao normal.
 - Gateway ficou offline (Last Will do MQTT) / voltou.
 - Nenhuma telemetria há mais de `TIMEOUT_SEM_DADOS` segundos.
+- Acima do limite **com o ventilador desligado** (modo manual): lembrete a cada `LEMBRETE_VENT_SEG` s (padrão 10).
+
+## Comandos pelo Telegram
+
+Só o chat de `TELEGRAM_CHAT_ID` é atendido. Digite `/` no bot para ver o menu.
+
+| Comando | Efeito |
+|---|---|
+| `/vent_1` | liga o ventilador (modo manual) |
+| `/vent_0` | desliga o ventilador (modo manual) |
+| `/auto` | volta ao modo automático |
+| `/limite 28.5` | define o limite de alerta em °C |
+| `/status` | temperatura, umidade, ventilador e gateway agora |
 
 ## Roteiro da demo ao vivo
 
 1. Dashboard aberto, temperatura ambiente estável.
 2. Segure o sensor na mão (ou use um secador de longe) → a temperatura sobe no gráfico.
 3. Passou do limite: LED e buzzer ligam sozinhos (borda) e chega mensagem no Telegram (nuvem).
-4. Clique em "Desligar ventilador" no dashboard → o LED apaga (comando nuvem → Arduino).
+4. Clique em "Desligar ventilador" no dashboard (ou mande `/vent_0` no Telegram) → o LED apaga (comando nuvem → Arduino)
+   e o bot passa a insistir a cada 10 s enquanto a sala estiver acima do limite.
 5. Puxe o cabo USB → em até 60 s chega o alerta "sem telemetria".
 6. Dica: abaixe o limite para ~2 °C acima da temperatura da sala antes da demo, para o alerta vir rápido.
 
 ## Modelo de dados (SQLite — `telemetria.db`)
 
-- `leituras`: ts, temperatura, umidade, ventilador, modo_auto, alerta, limite, descartadas, latencia_ms
+- `leituras`: ts, temperatura, umidade, ventilador, modo_auto, alerta, limite, descartadas, latencia_ms,
+  ilustrativo (1 = simulado por `gerar_dados_demo.py`: cinza no gráfico, marcado no Excel, fora das métricas de SLA)
 - `eventos`: ts, tipo (alerta, normalizado, comando, offline, online, sem_dados, dados), mensagem
 
 ## Modelos de nuvem (IaaS / PaaS / SaaS)

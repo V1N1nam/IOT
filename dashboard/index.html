@@ -7,7 +7,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root { --fundo:#f4f5f7; --card:#fff; --texto:#1d2330; --suave:#6b7280; --borda:#e3e6eb;
-          --ok:#1a7f4b; --alerta:#c62828; --azul:#2563eb; }
+          --ok:#1a7f4b; --alerta:#c62828; --azul:#2563eb; --ok-bg:#e3f4ea; --ruim-bg:#fde8e8;
+          --neutro-bg:#eceef2; --aviso-bg:#fff7e0; --aviso-borda:#f0d58a; --grade:rgba(0,0,0,.08); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --fundo:#0f1115; --card:#181b22; --texto:#e6e8ec; --suave:#9aa3b2;
+      --borda:#2a2f3a; --ok:#4ade80; --alerta:#f87171; --azul:#3b82f6; --ok-bg:#12331f; --ruim-bg:#3a1515;
+      --neutro-bg:#262a33; --aviso-bg:#3a2f10; --aviso-borda:#6b5518; --grade:rgba(255,255,255,.08); }
+  }
+  :root[data-theme="dark"] { --fundo:#0f1115; --card:#181b22; --texto:#e6e8ec; --suave:#9aa3b2;
+    --borda:#2a2f3a; --ok:#4ade80; --alerta:#f87171; --azul:#3b82f6; --ok-bg:#12331f; --ruim-bg:#3a1515;
+    --neutro-bg:#262a33; --aviso-bg:#3a2f10; --aviso-borda:#6b5518; --grade:rgba(255,255,255,.08); }
   * { box-sizing: border-box; }
   body { margin:0; font-family: system-ui, sans-serif; background:var(--fundo); color:var(--texto); }
   header { padding:16px 24px; background:var(--card); border-bottom:1px solid var(--borda);
@@ -20,17 +29,18 @@
   .valor { font-size:34px; font-weight:600; font-variant-numeric:tabular-nums; }
   .valor small { font-size:16px; color:var(--suave); font-weight:400; }
   .selo { display:inline-block; padding:3px 10px; border-radius:99px; font-size:13px; font-weight:600; }
-  .selo.ok { background:#e3f4ea; color:var(--ok); }
-  .selo.ruim { background:#fde8e8; color:var(--alerta); }
-  .selo.neutro { background:#eceef2; color:var(--suave); }
-  .card.em-alerta { border-color:var(--alerta); box-shadow:0 0 0 2px #fde8e8; }
+  .selo.ok { background:var(--ok-bg); color:var(--ok); }
+  .selo.ruim { background:var(--ruim-bg); color:var(--alerta); }
+  .selo.neutro { background:var(--neutro-bg); color:var(--suave); }
+  .card.em-alerta { border-color:var(--alerta); box-shadow:0 0 0 2px var(--ruim-bg); }
   .em-alerta .valor { color:var(--alerta); }
   button { font:inherit; padding:8px 14px; border-radius:8px; border:1px solid var(--borda);
-           background:var(--card); cursor:pointer; }
+           background:var(--card); color:var(--texto); cursor:pointer; }
   button:hover { border-color:var(--azul); }
   button.primario { background:var(--azul); color:#fff; border-color:var(--azul); }
   .controles { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-  input { font:inherit; width:80px; padding:7px; border:1px solid var(--borda); border-radius:8px; }
+  input { font:inherit; width:80px; padding:7px; border:1px solid var(--borda); border-radius:8px;
+          background:var(--card); color:var(--texto); }
   .grafico { position:relative; height:320px; }
   .duas { display:grid; grid-template-columns:2fr 1fr; gap:16px; }
   @media (max-width:800px) { .duas { grid-template-columns:1fr; } }
@@ -40,6 +50,7 @@
   table { width:100%; font-size:14px; border-collapse:collapse; }
   td { padding:5px 0; } td:last-child { text-align:right; font-variant-numeric:tabular-nums; }
   #msg { font-size:13px; color:var(--suave); }
+  .aviso { margin:10px 0; padding:8px 12px; border-radius:8px; font-size:13px; background:var(--aviso-bg); border:1px solid var(--aviso-borda); }
 </style>
 </head>
 <body>
@@ -48,6 +59,7 @@
   <div class="controles">
     <span class="rotulo" style="margin:0">Broker</span><span id="selo-broker" class="selo neutro">—</span>
     <span class="rotulo" style="margin:0">Gateway</span><span id="selo-gateway" class="selo neutro">—</span>
+    <button id="btn-tema" onclick="trocarTema()" aria-label="Alternar tema claro/escuro">🌙</button>
   </div>
 </header>
 <main>
@@ -65,6 +77,7 @@
       <div class="rotulo">Ventilador</div>
       <div class="valor" id="vent">—</div>
       <div class="rotulo" id="modo" style="margin-top:6px">—</div>
+      <div class="rotulo" id="vent-tempo">—</div>
     </div>
     <div class="card">
       <div class="rotulo">Última leitura</div>
@@ -95,9 +108,13 @@
           <button onclick="periodo(15)">15 min</button>
           <button onclick="periodo(60)">1 h</button>
           <button onclick="periodo(1440)">24 h</button>
+          <button class="primario" onclick="location.href = '/api/exportar?minutos=' + minutos">Exportar Excel</button>
         </div>
       </div>
+      <div id="aviso-demo" class="aviso" hidden>⚠️ Trechos em <b>cinza tracejado</b> são <b>dados ilustrativos (simulados)</b>,
+        não medições reais. Servem só para mostrar o histórico e ficam fora das métricas de SLA.</div>
       <div class="grafico"><canvas id="grafico"></canvas></div>
+      <div class="rotulo" style="margin:6px 0 0">Atualiza automaticamente a cada 10 s · <span id="atualizado">—</span></div>
     </div>
     <div style="display:grid; gap:16px; align-content:start">
       <div class="card">
@@ -122,15 +139,20 @@ let minutos = 15;
 const hora = ts => new Date(ts * 1000).toLocaleTimeString('pt-BR');
 const fmt = (v, d = 1) => v == null ? '—' : Number(v).toFixed(d);
 
+let ilustrativo = [];
+// trecho simulado: cinza tracejado, para não ser confundido com medição real
+const cinzaSeDemo = cor => ({ borderColor: c => ilustrativo[c.p0DataIndex] ? '#9ca3af' : cor,
+                              borderDash: c => ilustrativo[c.p0DataIndex] ? [4, 4] : undefined });
+
 const grafico = new Chart(document.getElementById('grafico'), {
   type: 'line',
   data: { labels: [], datasets: [
     { label: 'Temperatura (°C)', data: [], borderColor: '#c62828', backgroundColor: '#c62828',
-      yAxisID: 'y', tension: .3, pointRadius: 0, borderWidth: 2 },
+      yAxisID: 'y', tension: .3, pointRadius: 0, borderWidth: 2, segment: cinzaSeDemo('#c62828') },
     { label: 'Limite (°C)', data: [], borderColor: '#c62828', borderDash: [6, 4],
       yAxisID: 'y', pointRadius: 0, borderWidth: 1 },
     { label: 'Umidade (%)', data: [], borderColor: '#2563eb', backgroundColor: '#2563eb',
-      yAxisID: 'y1', tension: .3, pointRadius: 0, borderWidth: 2 },
+      yAxisID: 'y1', tension: .3, pointRadius: 0, borderWidth: 2, segment: cinzaSeDemo('#2563eb') },
   ]},
   options: {
     animation: false, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
@@ -176,8 +198,14 @@ async function atualizar() {
     document.getElementById('s-temp').textContent = `${fmt(s.tmin)} / ${fmt(s.tmed)} / ${fmt(s.tmax)} °C`;
     document.getElementById('s-leituras').textContent = s.leituras;
     document.getElementById('s-alertas').textContent = s.alertas;
+    const vMin = Math.round(s.vent_seg / 60);
+    document.getElementById('vent-tempo').textContent =
+      `ligado ${vMin >= 60 ? Math.floor(vMin / 60) + ' h ' + (vMin % 60) + ' min' : vMin + ' min'} nas últimas 24 h`;
     document.getElementById('s-lat').textContent = `${fmt(s.lat_media, 0)} / ${fmt(s.lat_max, 0)} ms`;
 
+    ilustrativo = leituras.map(l => l.ilustrativo);
+    document.getElementById('aviso-demo').hidden = !ilustrativo.some(Boolean);
+    document.getElementById('atualizado').textContent = 'última atualização ' + new Date().toLocaleTimeString('pt-BR');
     grafico.data.labels = leituras.map(l => hora(l.ts));
     grafico.data.datasets[0].data = leituras.map(l => l.temperatura);
     grafico.data.datasets[1].data = leituras.map(l => l.limite);
@@ -204,8 +232,33 @@ async function comando(cmd) {
 
 function periodo(m) { minutos = m; atualizar(); }
 
+const escuroNoSistema = matchMedia('(prefers-color-scheme: dark)');
+const temaAtual = () => document.documentElement.dataset.theme || (escuroNoSistema.matches ? 'dark' : 'light');
+
+function aplicarTema() {
+  const css = getComputedStyle(document.documentElement);
+  grafico.options.color = css.getPropertyValue('--suave');
+  for (const eixo of Object.values(grafico.options.scales)) {
+    eixo.ticks.color = eixo.title.color = css.getPropertyValue('--suave');
+    eixo.grid.color = css.getPropertyValue('--grade');
+  }
+  grafico.update();
+  document.getElementById('btn-tema').textContent = temaAtual() === 'dark' ? '☀️' : '🌙';
+}
+
+function trocarTema() {
+  const novo = temaAtual() === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = novo;
+  try { localStorage.setItem('tema', novo); } catch (e) {}
+  aplicarTema();
+}
+
+try { const t = localStorage.getItem('tema'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+escuroNoSistema.addEventListener('change', aplicarTema);
+aplicarTema();
+
 atualizar();
-setInterval(atualizar, 3000);
+setInterval(atualizar, 10000);
 </script>
 </body>
 </html>
