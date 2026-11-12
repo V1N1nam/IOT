@@ -3,7 +3,7 @@
 Só aceita conexões desta máquina e não tem senha: use para testar offline.
 Para a apresentação, prefira o EMQX Cloud (TLS + usuário/senha).
 
-Uso:  py -m pip install --user amqtt   e depois   py broker_local.py
+Uso:  py -m pip install --user amqtt   e depois   py ferramentas/broker_local.py
 """
 import os
 import sys

@@ -12,6 +12,22 @@ mostra num dashboard web e avisa no Telegram. Do dashboard dá para ligar/deslig
 
 **Nada aqui precisa de permissão de administrador.**
 
+## Estrutura
+
+```text
+IOT/
+├─ backend.py            back-end: MQTT → SQLite, API, dashboard, Telegram
+├─ gateway.py            ponte Arduino (USB/serial) ⇄ MQTT
+├─ config.py             lê o .env e cria o cliente MQTT (usado pelos dois acima)
+├─ rodar_teste.bat       sobe backend + gateway e abre o dashboard (Windows)
+├─ arduino/monitor_sala/ código do Arduino (.ino)
+├─ dashboard/            página web (index.html)
+├─ ferramentas/          broker MQTT local (testes offline) e gerador de dados ilustrativos
+├─ docs/                 relatório técnico e slides da banca
+├─ .env.example          modelo de configuração → copie para .env (este não vai pro git)
+└─ requirements.txt
+```
+
 ## Rodar em outra máquina — checklist rápido
 
 O Arduino já gravado leva o programa junto; só a parte do PC precisa ser preparada.
@@ -31,8 +47,8 @@ O Arduino já gravado leva o programa junto; só a parte do PC precisa ser prepa
    py gateway.py     # espere "[serial] conectado em COMx" e "[telemetria] {...}"
    ```
 8. **Abra** <http://localhost:5000>. Broker e gateway devem aparecer em verde.
-9. *(Opcional)* Histórico de exemplo para a apresentação: `py gerar_dados_demo.py`
-   (some com `py gerar_dados_demo.py --apagar`). O banco `telemetria.db` é criado sozinho e não vai pelo git.
+9. *(Opcional)* Histórico de exemplo para a apresentação: `py ferramentas/gerar_dados_demo.py`
+   (some com `py ferramentas/gerar_dados_demo.py --apagar`). O banco `telemetria.db` é criado sozinho e não vai pelo git.
 
 **Se der errado:**
 
@@ -85,7 +101,7 @@ py -m pip install --user -r requirements.txt
 
 Se a rede (ex.: da empresa/faculdade) bloquear a porta 8883, use `MQTT_PORT=8084` e `MQTT_WEBSOCKET=1`.
 
-**Alternativa offline:** `py -m pip install --user amqtt` e `py broker_local.py`; no `.env` use
+**Alternativa offline:** `py -m pip install --user amqtt` e `py ferramentas/broker_local.py`; no `.env` use
 `MQTT_HOST=localhost`, `MQTT_PORT=1883`, `MQTT_TLS=0` e usuário/senha vazios (sem segurança — só para testes).
 
 ## 5. Telegram
@@ -155,7 +171,7 @@ Só o chat de `TELEGRAM_CHAT_ID` é atendido. Digite `/` no bot para ver o menu.
 ## Modelo de dados (SQLite — `telemetria.db`)
 
 - `leituras`: ts, temperatura, umidade, ventilador, modo_auto, alerta, limite, descartadas, latencia_ms,
-  ilustrativo (1 = simulado por `gerar_dados_demo.py`: cinza no gráfico, marcado no Excel, fora das métricas de SLA)
+  ilustrativo (1 = simulado por `ferramentas/gerar_dados_demo.py`: cinza no gráfico, marcado no Excel, fora das métricas de SLA)
 - `eventos`: ts, tipo (alerta, normalizado, comando, offline, online, sem_dados, dados), mensagem
 
 ## Modelos de nuvem (IaaS / PaaS / SaaS)

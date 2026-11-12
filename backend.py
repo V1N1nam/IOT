@@ -52,7 +52,7 @@ def criar_tabelas():
                 limite       REAL    NOT NULL,
                 descartadas  INTEGER NOT NULL,   -- leituras filtradas na borda (acumulado)
                 latencia_ms  REAL,               -- gateway -> back-end
-                ilustrativo  INTEGER NOT NULL DEFAULT 0  -- 1 = dado simulado (gerar_dados_demo.py)
+                ilustrativo  INTEGER NOT NULL DEFAULT 0  -- 1 = dado simulado (ferramentas/gerar_dados_demo.py)
             );
             CREATE INDEX IF NOT EXISTS idx_leituras_ts ON leituras(ts);
 

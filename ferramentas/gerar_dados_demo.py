@@ -3,14 +3,16 @@
 Todas ficam com ilustrativo=1: aparecem tracejadas em cinza no dashboard, saem marcadas no CSV
 e não entram nas métricas de SLA.
 
-Uso:  py gerar_dados_demo.py            (recria os dados ilustrativos)
-      py gerar_dados_demo.py --apagar   (remove todos os dados ilustrativos)
+Uso:  py ferramentas/gerar_dados_demo.py            (recria os dados ilustrativos)
+      py ferramentas/gerar_dados_demo.py --apagar   (remove todos os dados ilustrativos)
 """
 import math
+import os
 import random
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # backend.py fica na raiz
 from backend import conectar_db, criar_tabelas
 
 LIMITE = 30.0
