@@ -18,7 +18,8 @@ from openpyxl.styles import Font
 
 import config
 
-ARQUIVO_DB = os.path.join(config.PASTA, "telemetria.db")
+ARQUIVO_DB = os.path.join(config.PASTA, "dados", "telemetria.db")
+os.makedirs(os.path.dirname(ARQUIVO_DB), exist_ok=True)
 
 estado = {
     "ultima": None,           # última leitura recebida

@@ -16,14 +16,16 @@ mostra num dashboard web e avisa no Telegram. Do dashboard dá para ligar/deslig
 
 ```text
 IOT/
-├─ backend.py            back-end: MQTT → SQLite, API, dashboard, Telegram
-├─ gateway.py            ponte Arduino (USB/serial) ⇄ MQTT
-├─ config.py             lê o .env e cria o cliente MQTT (usado pelos dois acima)
-├─ rodar_teste.bat       sobe backend + gateway e abre o dashboard (Windows)
+├─ src/
+│  ├─ backend.py         back-end: MQTT → SQLite, API, dashboard, Telegram
+│  ├─ gateway.py         ponte Arduino (USB/serial) ⇄ MQTT
+│  └─ config.py          lê o .env e cria o cliente MQTT (usado pelos dois acima)
 ├─ arduino/monitor_sala/ código do Arduino (.ino)
 ├─ dashboard/            página web (index.html)
+├─ dados/                telemetria.db (criado sozinho, não vai pro git)
 ├─ ferramentas/          broker MQTT local (testes offline) e gerador de dados ilustrativos
 ├─ docs/                 relatório técnico e slides da banca
+├─ rodar_teste.bat       sobe backend + gateway e abre o dashboard (Windows)
 ├─ .env.example          modelo de configuração → copie para .env (este não vai pro git)
 └─ requirements.txt
 ```
@@ -43,12 +45,12 @@ O Arduino já gravado leva o programa junto; só a parte do PC precisa ser prepa
    **Running**. Se estiver *Stopped*, clique nele → **Start** (no assistente que aparecer, pode clicar em *Skip*).
 7. **Rode** em dois terminais, nesta ordem:
    ```bash
-   py backend.py     # espere aparecer "[mqtt] conectado ao broker"
-   py gateway.py     # espere "[serial] conectado em COMx" e "[telemetria] {...}"
+   py src/backend.py     # espere aparecer "[mqtt] conectado ao broker"
+   py src/gateway.py     # espere "[serial] conectado em COMx" e "[telemetria] {...}"
    ```
 8. **Abra** <http://localhost:5000>. Broker e gateway devem aparecer em verde.
 9. *(Opcional)* Histórico de exemplo para a apresentação: `py ferramentas/gerar_dados_demo.py`
-   (some com `py ferramentas/gerar_dados_demo.py --apagar`). O banco `telemetria.db` é criado sozinho e não vai pelo git.
+   (some com `py ferramentas/gerar_dados_demo.py --apagar`). O banco `dados/telemetria.db` é criado sozinho e não vai pelo git.
 
 **Se der errado:**
 
@@ -57,7 +59,7 @@ O Arduino já gravado leva o programa junto; só a parte do PC precisa ser prepa
 | Broker "desconectado", gateway sem mensagem `[mqtt] conectado` | Deployment do EMQX parado ou rede bloqueando a 8883 | Passo 6; se continuar, `MQTT_PORT=8084` e `MQTT_WEBSOCKET=1` no `.env`; em último caso o broker local (seção 4) |
 | `could not open port 'COM3'` | Porta errada ou Monitor Serial aberto | Passo 5 |
 | Bot do Telegram não responde ou dá `409 Conflict` | Tem **outro** `backend.py` rodando com o mesmo token (outro terminal ou outro PC) | Deixe só um backend aberto |
-| Telegram demora ~20 s | IPv6 sem rota na rede | Já tratado em `config.py` (força IPv4); só reaparece se essa linha for removida |
+| Telegram demora ~20 s | IPv6 sem rota na rede | Já tratado em `src/config.py` (força IPv4); só reaparece se essa linha for removida |
 | `ModuleNotFoundError` | Dependências não instaladas | Passo 4 |
 | Temperatura salta / "leituras filtradas" sobe sem parar | Mau contato nos fios do DHT11 | Revise as ligações da seção 1 |
 
@@ -113,12 +115,12 @@ Se a rede (ex.: da empresa/faculdade) bloquear a porta 8883, use `MQTT_PORT=8084
 
 ## 6. Rodar
 
-Em dois terminais, dentro desta pasta:
+Em dois terminais, na pasta do projeto (ou só dê dois cliques em `rodar_teste.bat`):
 
 ```bash
-py backend.py               # abre o dashboard em http://localhost:5000
-py gateway.py               # com o Arduino na porta SERIAL_PORT do .env
-py gateway.py --simular     # sem Arduino (testes ou plano B na apresentação)
+py src/backend.py           # abre o dashboard em http://localhost:5000
+py src/gateway.py           # com o Arduino na porta SERIAL_PORT do .env
+py src/gateway.py --simular # sem Arduino (testes ou plano B na apresentação)
 ```
 
 O dashboard atualiza sozinho a cada 10 s, tem tema claro/escuro (🌙), mostra quanto tempo o ventilador
@@ -168,7 +170,7 @@ Só o chat de `TELEGRAM_CHAT_ID` é atendido. Digite `/` no bot para ver o menu.
 5. Puxe o cabo USB → em até 60 s chega o alerta "sem telemetria".
 6. Dica: abaixe o limite para ~2 °C acima da temperatura da sala antes da demo, para o alerta vir rápido.
 
-## Modelo de dados (SQLite — `telemetria.db`)
+## Modelo de dados (SQLite — `dados/telemetria.db`)
 
 - `leituras`: ts, temperatura, umidade, ventilador, modo_auto, alerta, limite, descartadas, latencia_ms,
   ilustrativo (1 = simulado por `ferramentas/gerar_dados_demo.py`: cinza no gráfico, marcado no Excel, fora das métricas de SLA)

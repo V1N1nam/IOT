@@ -12,7 +12,7 @@ import random
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # backend.py fica na raiz
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 from backend import conectar_db, criar_tabelas
 
 LIMITE = 30.0

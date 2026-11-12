@@ -10,7 +10,7 @@ import urllib3.util.connection
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 
-PASTA = os.path.dirname(os.path.abspath(__file__))
+PASTA = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # raiz do projeto (src/..)
 load_dotenv(os.path.join(PASTA, ".env"))
 
 # Windows usa cp1252 quando a saída é redirecionada: um print com emoji lançava erro e o alerta não ia pro Telegram
